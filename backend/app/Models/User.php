@@ -2,47 +2,89 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 
-class User extends Authenticatable
+//use Illuminate\Support\Facades\Artisan;
+use App\Models\Artisan;
+
+use Tymon\JWTAuth\Contracts\JWTSubject;
+
+class User extends Authenticatable implements JWTSubject
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
-        'name',
-        'email',
-        'password',
+        'name', 'email', 'phone', 'password', 'ville', 'zone', 'profile_image', 'role'
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
-        'password',
-        'remember_token',
+        'password', 'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
+
+    public function getJWTIdentifier()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->getKey();
     }
+
+    public function getJWTCustomClaims()
+    {
+        return [];
+    }
+
+
+
+    public function isAdmin()
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isArtisan()
+    {
+        return $this->role === 'artisan';
+    }
+
+    public function isClient()
+    {
+        return $this->role === 'client';
+    }
+
+    public function updateProfileImage($image)
+{
+    // Supprime l'ancienne image si elle existe
+    if ($this->profile_image) {
+        Storage::disk('public')->delete($this->profile_image);
+    }
+
+    // Stocke la nouvelle image
+    $path = $image->store('profile_images', 'public');
+    $this->update(['profile_image' => $path]);
+
+    return $path;
+}
+
+// Accesseur pour l'URL complète
+public function getProfileImageUrlAttribute()
+{
+    if (!$this->profile_image) {
+        return asset('images/default-avatar.jpg');
+    }
+
+    return Storage::disk('public')->exists($this->profile_image)
+        ? asset('storage/'.$this->profile_image)
+        : asset('images/default-avatar.jpg');
+}
+
+public function artisan()
+{
+    return $this->hasOne(Artisan::class)->withDefault();
+}
+
 }

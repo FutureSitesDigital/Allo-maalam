@@ -214,4 +214,8 @@ return [
 
     'partitioned' => env('SESSION_PARTITIONED_COOKIE', false),
 
+    'domain' => env('SESSION_DOMAIN', 'localhost'), // ou votre domaine
+    'secure' => env('SESSION_SECURE_COOKIE', false), // true en production avec HTTPS
+    'same_site' => 'lax',
+
 ];
