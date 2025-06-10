@@ -10,9 +10,11 @@ class Artisan extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'description', 'categorie', 'service', 'societe', 'is_approved'
+        'user_id', 'description', 'categorie', 'service', 'societe', 'cin',
+        'annees_experience', 'is_approved'
     ];
 
+    // Relations
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -22,17 +24,70 @@ class Artisan extends Model
     {
         return $this->hasMany(ArtisanImage::class);
     }
-    
-    // Ajoutez ces accesseurs/mutateurs
-protected $appends = ['approved_status'];
 
-public function getApprovedStatusAttribute()
-{
-    return $this->is_approved ? 'Approved' : 'Pending';
-}
+    public function diplomes()
+    {
+        return $this->hasMany(Diplome::class);
+    }
 
-public function scopeApproved($query)
-{
-    return $query->where('is_approved', true);
-}
+    // Scopes
+    public function scopeEnAttente($query)
+    {
+        return $query->where('statut_verification', 'en_attente');
+    }
+
+    public function scopeComplement($query)
+    {
+        return $query->where('statut_verification', 'complement');
+    }
+
+    public function scopeRejete($query)
+    {
+        return $query->where('statut_verification', 'rejete');
+    }
+
+    public function scopeApprouve($query)
+    {
+        return $query->where('statut_verification', 'approuve');
+    }
+
+    // Statuts possibles
+    public static function statuts()
+    {
+        return [
+            'en_attente' => 'En attente',
+            'complement' => 'Demande de complément',
+            'rejete' => 'Refusé',
+            'approuve' => 'Approuvé'
+        ];
+    }
+
+    // Types de complément possibles
+    public static function typesComplement()
+    {
+        return [
+            'photo_manquante' => 'Photo manquante',
+            'info_incomplete' => 'Information incomplète',
+            'document_manquant' => 'Document manquant',
+            'autre' => 'Autre'
+        ];
+    }
+
+    // Raisons de refus possibles
+    public static function raisonsRejet()
+    {
+        return [
+            'faux_documents' => 'Documents falsifiés',
+            'incomplet' => 'Dossier incomplet',
+            'non_eligible' => 'Non éligible',
+            'autre' => 'Autre raison'
+        ];
+    }
+
+
+    // Ajouter ces constantes
+    const STATUS_PENDING = 'en_attente';
+    const STATUS_APPROVED = 'approuve';
+    const STATUS_REJECTED = 'rejete';
+
 }

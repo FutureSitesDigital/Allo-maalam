@@ -36,6 +36,24 @@ export default function LoginPage() {
       const response = await login(formData);
       console.log('Réponse du serveur:', response); // Debug
       
+      // Gestion des différents statuts de vérification
+      if (response.statut === 'en_attente') {
+        navigate('/pending-verification');
+        return;
+      }
+
+      if (response.statut === 'rejete') {
+        setErrors({
+          general: `Votre compte a été rejeté. Raison: ${response.raison || 'Non spécifiée'}`
+        });
+        return;
+      }
+
+      if (response.requires_complement) {
+        navigate(`/artisan/complement/${response.artisan_id}`);
+        return;
+      }
+
       setLoginSuccess(true);
       
       // Redirection après 1.5 secondes pour voir le message de succès
@@ -117,7 +135,6 @@ export default function LoginPage() {
               placeholder="Mot de passe"
               icon="password"
               error={errors.password}
-              
             />
 
             <div className="flex items-center justify-between">

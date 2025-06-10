@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('ville');
             $table->string('zone');
             $table->string('profile_image')->nullable();
+            $table->enum('statut_verification', ['en_attente', 'complement', 'rejete', 'approuve'])->default('en_attente');
             $table->enum('role', ['client', 'artisan', 'admin'])->default('client');
             $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();

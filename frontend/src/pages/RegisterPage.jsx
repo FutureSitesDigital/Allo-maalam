@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronRightIcon, ChevronLeftIcon, PhotoIcon, XMarkIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { ChevronRightIcon, ChevronLeftIcon, PhotoIcon, XMarkIcon, EyeIcon, EyeSlashIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/Logo allo maalam.png';
@@ -67,19 +67,23 @@ export default function RegisterPage() {
     categorie: '',
     service: '',
     images: [],
-    societe: ''
+    societe: '',
+    cin: null,
+    diplomas: [],
+    annees_experience: '',
+    terms_accepted: false
   });
 
   const [villes, setVilles] = useState([]);
   const [categories, setCategories] = useState([]);
   const [services, setServices] = useState([]);
-  const [zones, setZones] = useState([]);
   const [errors, setErrors] = useState({});
   const [etapeArtisan, setEtapeArtisan] = useState(1);
   const [previewImage, setPreviewImage] = useState(null);
   const [imagePreviews, setImagePreviews] = useState([]);
+  const [cinPreview, setCinPreview] = useState(null);
+  const [diplomaPreviews, setDiplomaPreviews] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loadingZones, setLoadingZones] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
@@ -90,15 +94,21 @@ export default function RegisterPage() {
           fetch('http://localhost:8000/api/villes'),
           fetch('http://localhost:8000/api/categories')
         ]);
-        
-        const villesData = await villesRes.json();
-        const categoriesData = await categoriesRes.json();
+
+        if (!villesRes.ok || !categoriesRes.ok) {
+          throw new Error('Erreur de chargement des données');
+        }
+
+        const [villesData, categoriesData] = await Promise.all([
+          villesRes.json(),
+          categoriesRes.json()
+        ]);
         
         setVilles(villesData);
         setCategories(categoriesData);
       } catch (error) {
-        console.error('Erreur lors du chargement des données:', error);
-        setErrors({ general: 'Erreur de chargement des données' });
+        console.error('Erreur:', error);
+        setErrors({ general: error.message });
       }
     };
 
@@ -109,40 +119,133 @@ export default function RegisterPage() {
     if (formData.categorie) {
       const selectedCat = categories.find(c => c.name === formData.categorie);
       setServices(selectedCat?.services || []);
-      setFormData(prev => ({ ...prev, service: '' }));
+      if (formData.service && !selectedCat?.services?.some(s => s.name === formData.service)) {
+        setFormData(prev => ({ ...prev, service: '' }));
+      }
     }
   }, [formData.categorie, categories]);
 
-  useEffect(() => {
-    const fetchZones = async () => {
-      if (formData.ville) {
-        setLoadingZones(true);
-        try {
-          const response = await fetch(`http://localhost:8000/api/zones?ville=${formData.ville}`);
-          const zonesData = await response.json();
-          setZones(zonesData);
-        } catch (error) {
-          console.error('Erreur lors du chargement des zones:', error);
-          setErrors(prevErrors => ({ ...prevErrors, zone: 'Erreur de chargement des zones' }));
-        } finally {
-          setLoadingZones(false);
-        }
-      } else {
-        setZones([]);
-      }
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+    
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    if (!files || files.length === 0) return;
+
+    const processFile = (file, callback) => {
+      const reader = new FileReader();
+      reader.onload = () => callback(reader.result);
+      reader.readAsDataURL(file);
+      return file;
     };
-  
-    fetchZones();
-  }, [formData.ville]);
+
+    switch (name) {
+      case 'profileImage':
+        const profileFile = files[0];
+        setFormData(prev => ({ ...prev, profileImage: profileFile }));
+        processFile(profileFile, setPreviewImage);
+        break;
+
+      case 'cin':
+        const cinFile = files[0];
+        setFormData(prev => ({ ...prev, cin: cinFile }));
+        processFile(cinFile, setCinPreview);
+        break;
+
+      case 'diplomas':
+        const newDiplomas = Array.from(files).slice(0, 3 - formData.diplomas.length);
+        setFormData(prev => ({
+          ...prev,
+          diplomas: [...prev.diplomas, ...newDiplomas]
+        }));
+        
+        newDiplomas.forEach(file => {
+          processFile(file, (result) => {
+            setDiplomaPreviews(prev => [...prev, {
+              name: file.name,
+              url: result
+            }]);
+          });
+        });
+        break;
+
+      case 'images':
+        const newImages = Array.from(files).slice(0, 4 - formData.images.length);
+        setFormData(prev => ({
+          ...prev,
+          images: [...prev.images, ...newImages]
+        }));
+        
+        newImages.forEach(file => {
+          processFile(file, (result) => {
+            setImagePreviews(prev => [...prev, result]);
+          });
+        });
+        break;
+    }
+  };
+
+  const removeFile = (type, index) => {
+    switch (type) {
+      case 'profileImage':
+        setFormData(prev => ({ ...prev, profileImage: null }));
+        setPreviewImage(null);
+        break;
+        
+      case 'cin':
+        setFormData(prev => ({ ...prev, cin: null }));
+        setCinPreview(null);
+        break;
+        
+      case 'diploma':
+        setFormData(prev => ({ 
+          ...prev, 
+          diplomas: prev.diplomas.filter((_, i) => i !== index) 
+        }));
+        setDiplomaPreviews(prev => prev.filter((_, i) => i !== index));
+        break;
+        
+      case 'image':
+        setFormData(prev => ({ 
+          ...prev, 
+          images: prev.images.filter((_, i) => i !== index) 
+        }));
+        setImagePreviews(prev => prev.filter((_, i) => i !== index));
+        break;
+    }
+  };
 
   const validateStep1 = () => {
     const newErrors = {};
-    if (!formData.name.trim()) newErrors.name = 'Nom complet est requis';
-    if (!formData.email.trim()) newErrors.email = 'Email est requis';
-    if (!formData.phone.trim()) newErrors.phone = 'Téléphone est requis';
-    if (!formData.ville) newErrors.ville = 'Ville est requise';
-    if (!formData.zone) newErrors.zone = 'Zone/Quartier est requis';
-    if (!formData.password) newErrors.password = 'Mot de passe est requis';
+    const requiredFields = {
+      name: 'Nom complet est requis',
+      email: 'Email est requis',
+      phone: 'Téléphone est requis',
+      ville: 'Ville est requise',
+      zone: 'Zone/Quartier est requis',
+      password: 'Mot de passe est requis',
+      terms_accepted: 'Vous devez accepter les termes et conditions'
+    };
+
+    Object.entries(requiredFields).forEach(([field, message]) => {
+      if (!formData[field]?.toString().trim() && field !== 'terms_accepted') {
+        newErrors[field] = message;
+      }
+      if (field === 'terms_accepted' && !formData[field]) {
+        newErrors[field] = message;
+      }
+    });
+
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
     }
@@ -153,8 +256,22 @@ export default function RegisterPage() {
 
   const validateStep2 = () => {
     const newErrors = {};
-    if (!formData.categorie) newErrors.categorie = 'Catégorie est requise';
-    if (!formData.service) newErrors.service = 'Service est requis';
+    
+    if (role === 'artisan') {
+      const requiredArtisanFields = {
+        categorie: 'Catégorie est requise',
+        service: 'Service est requis',
+        cin: 'La CIN est obligatoire',
+        annees_experience: 'Les années d\'expérience sont requises',
+        terms_accepted: 'Vous devez accepter les termes et conditions'
+      };
+
+      Object.entries(requiredArtisanFields).forEach(([field, message]) => {
+        if (!formData[field] && formData[field] !== 0) {
+          newErrors[field] = message;
+        }
+      });
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -165,131 +282,110 @@ export default function RegisterPage() {
     setErrors({});
     setIsSubmitting(true);
 
+    // Validation
     if (role === 'artisan') {
-      if (etapeArtisan === 1 && !validateStep1()) {
+        if (etapeArtisan === 1 && !validateStep1()) {
+            setIsSubmitting(false);
+            return;
+        }
+        if (etapeArtisan === 2 && !validateStep2()) {
+            setIsSubmitting(false);
+            return;
+        }
+    } else if (!validateStep1()) {
         setIsSubmitting(false);
         return;
-      }
-      if (etapeArtisan === 2 && !validateStep2()) {
-        setIsSubmitting(false);
-        return;
-      }
-    } else {
-      if (!validateStep1()) {
-        setIsSubmitting(false);
-        return;
-      }
     }
 
     try {
-      const formDataToSend = new FormData();
-      
-      formDataToSend.append('name', formData.name);
-      formDataToSend.append('email', formData.email);
-      formDataToSend.append('phone', formData.phone);
-      formDataToSend.append('password', formData.password);
-      formDataToSend.append('password_confirmation', formData.confirmPassword);
-      formDataToSend.append('ville', formData.ville);
-      formDataToSend.append('zone', formData.zone);
-      formDataToSend.append('role', role);
-      
-      if (formData.profileImage) {
-        formDataToSend.append('profile_image', formData.profileImage);
-      }
-
-      if (role === 'artisan') {
-        if (formData.description) formDataToSend.append('description', formData.description);
-        formDataToSend.append('categorie', formData.categorie);
-        formDataToSend.append('service', formData.service);
-        if (formData.societe) formDataToSend.append('societe', formData.societe);
+        const formDataToSend = new FormData();
         
-        if (formData.images.length > 0) {
-          Array.from(formData.images).forEach((image, index) => {
-            formDataToSend.append(`images[${index}]`, image);
-          });
-        }
-      }
+        // Ajout des champs de base
+        const baseFields = {
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            password: formData.password,
+            password_confirmation: formData.confirmPassword,
+            ville: formData.ville,
+            zone: formData.zone,
+            role: role,
+            terms_accepted: formData.terms_accepted // Envoi direct du boolean
+        };
 
-      const response = await authService.register(formDataToSend);
-      
-      if (response.success) {
-        localStorage.setItem('token', response.token);
-        navigate(response.redirect_to || (role === 'artisan' ? '/artisan/dashboard' : '/client/dashboard'));
-      } else {
-        setErrors({ 
-          general: response.message || 'Erreur lors de l\'inscription',
-          ...response.errors
+        Object.entries(baseFields).forEach(([key, value]) => {
+            formDataToSend.append(key, value);
         });
-      }
-    } catch (error) {
-      console.error('Erreur complète:', error);
-      setErrors({ 
-        general: error.response?.data?.message || error.message || 'Erreur réseau'
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    
-    if (name === 'ville') {
-      setFormData(prev => ({ ...prev, ville: value, zone: '' }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
-    
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setFormData(prev => ({ ...prev, profileImage: file }));
-    setErrors({...errors, profileImage: ''});
-    
-    const reader = new FileReader();
-    reader.onload = () => setPreviewImage(reader.result);
-    reader.readAsDataURL(file);
-  };
-
-  const handleMultiImageChange = (e) => {
-    if (!e.target.files) return;
-    
-    const filesArray = Array.from(e.target.files).slice(0, 4 - formData.images.length);
-    if (filesArray.length === 0) return;
-
-    setFormData(prev => ({ ...prev, images: [...prev.images, ...filesArray] }));
-
-    const newPreviews = [];
-    filesArray.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        newPreviews.push(reader.result);
-        if (newPreviews.length === filesArray.length) {
-          setImagePreviews(prev => [...prev, ...newPreviews]);
+        // Ajout de l'image de profil
+        if (formData.profileImage) {
+            formDataToSend.append('profile_image', formData.profileImage);
         }
-      };
-      reader.readAsDataURL(file);
-    });
-  };
 
-  const removeImage = (index) => {
-    const newImages = [...formData.images];
-    newImages.splice(index, 1);
-    setFormData(prev => ({ ...prev, images: newImages }));
+        // Ajout des champs spécifiques aux artisans
+        if (role === 'artisan') {
+            const artisanFields = {
+                description: formData.description,
+                categorie: formData.categorie,
+                service: formData.service,
+                annees_experience: formData.annees_experience,
+                societe: formData.societe
+            };
 
-    const newPreviews = [...imagePreviews];
-    newPreviews.splice(index, 1);
-    setImagePreviews(newPreviews);
+            Object.entries(artisanFields).forEach(([key, value]) => {
+                formDataToSend.append(key, value);
+            });
+
+            // Ajout des fichiers
+            if (formData.cin) {
+                formDataToSend.append('cin', formData.cin);
+            }
+
+            formData.diplomas.forEach((diploma) => {
+    formDataToSend.append('diplomes[]', diploma);
+});
+
+            formData.images.forEach((image, index) => {
+                formDataToSend.append(`images[${index}]`, image);
+            });
+        }
+
+        // Envoi de la requête
+        const response = await authService.register(formDataToSend);
+        
+        if (response.success) {
+            localStorage.setItem('token', response.token);
+            
+            // Redirection en fonction du statut
+            if (response.statut === 'en_attente') {
+                navigate('/pending-verification');
+            } else {
+                navigate(response.redirect_to);
+            }
+        } else {
+            setErrors({
+                general: response.message || 'Erreur lors de l\'inscription',
+                ...response.errors
+            });
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+        setErrors({
+            general: error.message || 'Une erreur est survenue lors de l\'inscription'
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   const nextStep = () => validateStep1() && setEtapeArtisan(2);
   const prevStep = () => setEtapeArtisan(1);
+
+  const selectedVille = villes.find(v => v.name === formData.ville);
+  const zonesOptions = selectedVille?.zones?.map(z => ({ 
+    value: z.name, 
+    label: z.name 
+  })) || [];
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -328,8 +424,9 @@ export default function RegisterPage() {
 
               <form className="mt-4 space-y-4" onSubmit={handleSubmit} noValidate>
                 {(role === 'client' || etapeArtisan === 1) && (
-                  <div className="space-y-4">
-                    <div className="flex flex-col items-center mb-4">
+                  <>
+                    {/* Étape 1 - Champs communs */}
+                    <div className="flex flex-col items-center mb-4 relative">
                       <label className="cursor-pointer group">
                         <div className={`w-32 h-32 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border-2 ${errors.profileImage ? 'border-red-500' : 'border-gray-300'} group-hover:border-blue-500 transition-all`}>
                           {previewImage ? (
@@ -344,11 +441,21 @@ export default function RegisterPage() {
                         <input
                           type="file"
                           name="profileImage"
-                          onChange={handleImageChange}
+                          onChange={handleFileChange}
                           className="hidden"
                           accept="image/*"
                         />
                       </label>
+                      
+                      {previewImage && (
+                        <button
+                          type="button"
+                          onClick={() => removeFile('profileImage')}
+                          className="absolute top-0 right-[8.3rem] bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                        >
+                          <XMarkIcon className="h-5 w-5" />
+                        </button>
+                      )}
                     </div>
 
                     <InputField
@@ -357,9 +464,8 @@ export default function RegisterPage() {
                       value={formData.name}
                       onChange={handleChange}
                       placeholder="Nom complet"
-                      icon="user"
-                      required
                       error={errors.name}
+                      required
                     />
 
                     <InputField
@@ -368,9 +474,8 @@ export default function RegisterPage() {
                       value={formData.email}
                       onChange={handleChange}
                       placeholder="Adresse email"
-                      icon="email"
-                      required
                       error={errors.email}
+                      required
                     />
 
                     <InputField
@@ -379,9 +484,8 @@ export default function RegisterPage() {
                       value={formData.phone}
                       onChange={handleChange}
                       placeholder="Téléphone"
-                      icon="phone"
-                      required
                       error={errors.phone}
+                      required
                     />
 
                     <div className="grid grid-cols-2 gap-4">
@@ -391,9 +495,9 @@ export default function RegisterPage() {
                         value={formData.ville}
                         onChange={handleChange}
                         placeholder="Ville"
-                        required
-                        error={errors.ville}
                         options={villes.map(v => ({ value: v.name, label: v.name }))}
+                        error={errors.ville}
+                        required
                       />
 
                       <InputField
@@ -402,10 +506,10 @@ export default function RegisterPage() {
                         value={formData.zone}
                         onChange={handleChange}
                         placeholder="Zone/Quartier"
-                        required
+                        options={zonesOptions}
+                        disabled={!formData.ville}
                         error={errors.zone}
-                        disabled={!formData.ville || loadingZones}
-                        options={zones.map(z => ({ value: z.name, label: z.name }))}
+                        required
                       />
                     </div>
 
@@ -415,9 +519,8 @@ export default function RegisterPage() {
                       value={formData.password}
                       onChange={handleChange}
                       placeholder="Mot de passe"
-                      icon="password"
-                      required
                       error={errors.password}
+                      required
                       endAdornment={
                         <button
                           type="button"
@@ -439,10 +542,34 @@ export default function RegisterPage() {
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       placeholder="Confirmer mot de passe"
-                      icon="password"
-                      required
                       error={errors.confirmPassword}
+                      required
                     />
+
+                    {/* Termes et conditions pour tous les utilisateurs */}
+                    <div className="flex items-start mb-4">
+                      <div className="flex items-center h-5">
+                        <input
+                          id="terms_accepted"
+                          name="terms_accepted"
+                          type="checkbox"
+                          checked={formData.terms_accepted}
+                          onChange={handleChange}
+                          className={`w-4 h-4 text-blue-600 rounded focus:ring-blue-500 ${
+                            errors.terms_accepted ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                          required
+                        />
+                      </div>
+                      <div className="ml-3 text-sm">
+                        <label htmlFor="terms_accepted" className="font-medium text-gray-700">
+                          J'accepte les <a href="/terms" className="text-blue-600 hover:underline">termes et conditions</a> *
+                        </label>
+                        {errors.terms_accepted && (
+                          <p className="mt-1 text-sm text-red-600">{errors.terms_accepted}</p>
+                        )}
+                      </div>
+                    </div>
 
                     {role === 'artisan' && (
                       <motion.button
@@ -456,11 +583,12 @@ export default function RegisterPage() {
                         Continuer <ChevronRightIcon className="h-5 w-5 ml-2" />
                       </motion.button>
                     )}
-                  </div>
+                  </>
                 )}
 
                 {role === 'artisan' && etapeArtisan === 2 && (
-                  <div className="space-y-4">
+                  <>
+                    {/* Étape 2 - Champs artisans */}
                     <div className="grid grid-cols-2 gap-4">
                       <InputField
                         type="select"
@@ -468,12 +596,9 @@ export default function RegisterPage() {
                         value={formData.categorie}
                         onChange={handleChange}
                         placeholder="Catégorie"
-                        required
+                        options={categories.map(c => ({ value: c.name, label: c.name }))}
                         error={errors.categorie}
-                        options={categories.map(c => ({ 
-                          value: c.name, 
-                          label: c.name 
-                        }))}
+                        required
                       />
 
                       <InputField
@@ -482,13 +607,10 @@ export default function RegisterPage() {
                         value={formData.service}
                         onChange={handleChange}
                         placeholder="Service"
-                        required
-                        error={errors.service}
+                        options={services.map(s => ({ value: s.name, label: s.name }))}
                         disabled={!formData.categorie}
-                        options={services.map(s => ({ 
-                          value: s.name, 
-                          label: s.name 
-                        }))}
+                        error={errors.service}
+                        required
                       />
                     </div>
 
@@ -501,20 +623,128 @@ export default function RegisterPage() {
                       rows={4}
                     />
 
+                    {/* Carte d'identité */}
+                    <div className="mb-4">
+                      <label className="block text-lg font-medium text-gray-700 mb-2">
+                        Carte d'identité nationale (CIN) *
+                      </label>
+                      <div className="flex items-center gap-4">
+                        {cinPreview ? (
+                          <div className="relative">
+                            <div className="w-24 h-24 bg-gray-100 rounded-lg border border-gray-300 flex items-center justify-center overflow-hidden">
+                              <DocumentTextIcon className="h-12 w-12 text-blue-500" />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeFile('cin')}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                            >
+                              <XMarkIcon className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="cursor-pointer">
+                            <div className="w-24 h-24 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 flex flex-col items-center justify-center">
+                              <DocumentTextIcon className="h-8 w-8 text-gray-400 mb-1" />
+                              <span className="text-xs text-gray-500 text-center px-1">Ajouter CIN</span>
+                            </div>
+                            <input
+                              type="file"
+                              name="cin"
+                              onChange={handleFileChange}
+                              className="hidden"
+                              accept=".jpg,.jpeg,.png,.pdf"
+                              required
+                            />
+                          </label>
+                        )}
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Formats acceptés:</span> JPG, PNG, PDF (max 2MB)
+                          </p>
+                          {errors.cin && (
+                            <p className="mt-1 text-sm text-red-600">{errors.cin}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Diplômes */}
+                    <div className="mb-4">
+                      <label className="block text-lg font-medium text-gray-700 mb-2">
+                        Diplômes ou certificats (optionnel)
+                      </label>
+                      <div className="grid grid-cols-3 gap-3 mb-3">
+                        {diplomaPreviews.map((diploma, index) => (
+                          <div key={index} className="relative">
+                            <div className="w-full h-20 bg-gray-100 rounded-lg border border-gray-300 flex items-center justify-center overflow-hidden">
+                              <DocumentTextIcon className="h-8 w-8 text-blue-500" />
+                              <span className="text-xs text-gray-600 truncate px-1 absolute bottom-1">
+                                {diploma.name}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeFile('diploma', index)}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                            >
+                              <XMarkIcon className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                        {formData.diplomas.length < 3 && (
+                          <label className="cursor-pointer">
+                            <div className="w-full h-20 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 flex flex-col items-center justify-center">
+                              <DocumentTextIcon className="h-6 w-6 text-gray-400 mb-1" />
+                              <span className="text-xs text-gray-500">Ajouter diplôme</span>
+                              <span className="text-xs text-gray-400">{formData.diplomas.length}/3</span>
+                            </div>
+                            <input
+                              type="file"
+                              name="diplomas"
+                              onChange={handleFileChange}
+                              className="hidden"
+                              accept=".jpg,.jpeg,.png,.pdf"
+                              multiple
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Années d'expérience */}
+                    <div className="mb-4">
+                      <label className="block text-lg font-medium text-gray-700 mb-2">
+                        Années d'expérience *
+                      </label>
+                      <select
+                        name="annees_experience"
+                        value={formData.annees_experience}
+                        onChange={handleChange}
+                        className={`w-full px-4 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 ${
+                          errors.annees_experience ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        required
+                      >
+                        <option value="">Sélectionnez...</option>
+                        <option value="0">0-1 an</option>
+                        <option value="2">2-5 ans</option>
+                        <option value="6">6-10 ans</option>
+                        <option value="11">Plus de 10 ans</option>
+                      </select>
+                      {errors.annees_experience && (
+                        <p className="mt-1 text-sm text-red-600">{errors.annees_experience}</p>
+                      )}
+                    </div>
+
+                    {/* Images de réalisations */}
                     <div className="mb-4">
                       <label className="block text-lg font-medium text-gray-700 mb-2">
                         Images de réalisations (max 4, optionnel)
                       </label>
-                      
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         {imagePreviews.map((preview, index) => (
-                          <motion.div 
-                            key={index} 
-                            className="relative group"
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.3 }}
-                          >
+                          <div key={index} className="relative group">
                             <div className="aspect-square overflow-hidden rounded-lg border-2 border-gray-200">
                               <img 
                                 src={preview} 
@@ -524,20 +754,15 @@ export default function RegisterPage() {
                             </div>
                             <button
                               type="button"
-                              onClick={() => removeImage(index)}
+                              onClick={() => removeFile('image', index)}
                               className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               <XMarkIcon className="h-4 w-4" />
                             </button>
-                          </motion.div>
+                          </div>
                         ))}
-                        
                         {formData.images.length < 4 && (
-                          <motion.label 
-                            className="aspect-square flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 cursor-pointer hover:border-blue-500 transition-colors"
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                          >
+                          <label className="aspect-square flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 cursor-pointer hover:border-blue-500 transition-colors">
                             <div className="text-center p-4">
                               <PhotoIcon className="h-10 w-10 mx-auto text-gray-400" />
                               <span className="text-gray-500">Ajouter une image</span>
@@ -546,12 +771,12 @@ export default function RegisterPage() {
                             <input
                               type="file"
                               name="images"
-                              onChange={handleMultiImageChange}
+                              onChange={handleFileChange}
                               className="hidden"
                               accept="image/*"
                               multiple
                             />
-                          </motion.label>
+                          </label>
                         )}
                       </div>
                     </div>
@@ -562,7 +787,6 @@ export default function RegisterPage() {
                       value={formData.societe}
                       onChange={handleChange}
                       placeholder="Société (optionnel)"
-                      icon="building"
                     />
 
                     <div className="grid grid-cols-2 gap-4">
@@ -581,13 +805,13 @@ export default function RegisterPage() {
                         className={`bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-200 shadow-md text-lg font-medium ${
                           isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
                         }`}
-                        whileHover={{ scale: isSubmitting ? 1 : 1.01 }}
-                        whileTap={{ scale: isSubmitting ? 1 : 0.99 }}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
                       >
                         {isSubmitting ? 'Enregistrement...' : 'Finaliser l\'inscription'}
                       </motion.button>
                     </div>
-                  </div>
+                  </>
                 )}
 
                 {role === 'client' && (
@@ -597,8 +821,8 @@ export default function RegisterPage() {
                     className={`w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-200 shadow-md text-lg font-medium ${
                       isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
                     }`}
-                    whileHover={{ scale: isSubmitting ? 1 : 1.01 }}
-                    whileTap={{ scale: isSubmitting ? 1 : 0.99 }}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                   >
                     {isSubmitting ? 'Enregistrement...' : 'Créer mon compte'}
                   </motion.button>

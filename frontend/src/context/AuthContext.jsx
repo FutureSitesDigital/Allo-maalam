@@ -3,24 +3,29 @@ import { authService } from '../services/authService';
 
 const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
+ const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
+useEffect(() => {
+  const checkAuth = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
         const userData = await authService.getCurrentUser();
         setUser(userData);
-      } catch (error) {
-        setUser(null);
-      } finally {
-        setIsLoading(false);
       }
-    };
+    } catch (error) {
+      console.error("Erreur de vérification d'authentification:", error);
+      localStorage.removeItem('token'); // Nettoyer si token invalide
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    checkAuth();
-  }, []);
+  checkAuth();
+}, []);
 
   const login = async (credentials) => {
     const data = await authService.login(credentials);
@@ -47,3 +52,4 @@ export const useAuth = () => {
   }
   return context;
 };
+export default AuthProvider;

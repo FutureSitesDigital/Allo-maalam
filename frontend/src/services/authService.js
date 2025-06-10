@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const API_URL = 'http://localhost:8000/api';
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Accept': 'application/json',
@@ -24,26 +24,29 @@ api.interceptors.request.use((config) => {
 export const authService = {
   register: async (formData) => {
     try {
-      const response = await api.post('/auth/register', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+        const response = await api.post('/auth/register', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
 
-      localStorage.setItem('token', response.data.token);
-
-      return response.data;
+        localStorage.setItem('token', response.data.token);
+        return response.data;
     } catch (error) {
-      console.error("Erreur backend:", error.response?.data);
+        console.error("Erreur backend:", error.response?.data);
+        
+        let errorMessage = "Erreur lors de l'inscription";
+        if (error.response?.data?.errors) {
+            // Traitement des erreurs de validation
+            const firstError = Object.values(error.response.data.errors)[0][0];
+            errorMessage = firstError || errorMessage;
+        } else if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+        }
 
-      throw new Error(
-        error.response?.data?.message ||
-        Object.values(error.response?.data?.errors || {})[0]?.[0] ||
-        error.response?.data?.error ||
-        "Erreur lors de l'inscription"
-      );
+        throw new Error(errorMessage);
     }
-  },
+},
 
   login: async (credentials) => {
     try {
@@ -79,5 +82,32 @@ export const authService = {
     } catch (error) {
       throw new Error("Impossible de récupérer l'utilisateur");
     }
+  },
+
+  submitComplement: async (artisanId, formData) => {
+  try {
+    const response = await api.post(`/artisan/complement/${artisanId}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      error.response?.data?.message || 
+      'Erreur lors de la soumission des compléments'
+    );
   }
+},
+getCurrentUser: async () => {
+  try {
+    const response = await api.get('/auth/user');
+    return response.data;
+  } catch (error) {
+    console.error("Erreur de récupération de l'utilisateur:", error);
+    localStorage.removeItem('token'); // Nettoyer si token invalide
+    throw error;
+  }
+},
+
 };

@@ -18,7 +18,8 @@ class User extends Authenticatable implements JWTSubject
     use HasFactory, Notifiable;
 
     protected $fillable = [
-        'name', 'email', 'phone', 'password', 'ville', 'zone', 'profile_image', 'role'
+        'name', 'email', 'phone', 'password', 'ville', 'zone', 'profile_image','statut_verification',
+    'role'
     ];
 
     protected $hidden = [
@@ -37,23 +38,6 @@ class User extends Authenticatable implements JWTSubject
     public function getJWTCustomClaims()
     {
         return [];
-    }
-
-
-
-    public function isAdmin()
-    {
-        return $this->role === 'admin';
-    }
-
-    public function isArtisan()
-    {
-        return $this->role === 'artisan';
-    }
-
-    public function isClient()
-    {
-        return $this->role === 'client';
     }
 
     public function updateProfileImage($image)
@@ -85,6 +69,43 @@ public function getProfileImageUrlAttribute()
 public function artisan()
 {
     return $this->hasOne(Artisan::class)->withDefault();
+}
+
+// Ajoutez ces méthodes
+public function isActive()
+{
+    return $this->status === 'active';
+}
+
+public function isBlocked()
+{
+    return $this->status === 'blocked';
+}
+
+// Ajoutez ces scopes
+public function scopeClients($query)
+{
+    return $query->where('role', 'client');
+}
+
+public function scopeArtisans($query)
+{
+    return $query->where('role', 'artisan');
+}
+
+public function scopePendingVerification($query)
+{
+     return $query->whereHas('artisan', function($q) {
+        $q->where('statut_verification', 'en_attente');
+    });
+}
+
+public function scopeApprovedArtisans($query)
+{
+    return $query->where('role', 'artisan')
+        ->whereHas('artisan', function($q) {
+            $q->where('statut_verification', 'approuve');
+        });
 }
 
 }

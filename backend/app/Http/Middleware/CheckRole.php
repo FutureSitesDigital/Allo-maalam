@@ -4,19 +4,26 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-\Illuminate\Http\Middleware\HandleCors::class;
-
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
 
 class CheckRole
 {
     public function handle(Request $request, Closure $next, ...$roles)
     {
-        $user = auth('api')->user();
+        $user = Auth::user();
 
-        if (!$user || !in_array($user->role, $roles)) {
+        if (!$user) {
             return response()->json([
                 'success' => false,
-                'error' => 'Accès non autorisé'
+                'message' => 'Authentification requise'
+            ], 401);
+        }
+
+        if (!in_array($user->role, $roles)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Accès non autorisé pour votre rôle'
             ], 403);
         }
 
