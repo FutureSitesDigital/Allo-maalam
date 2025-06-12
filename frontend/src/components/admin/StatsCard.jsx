@@ -1,24 +1,25 @@
-import React from 'react';
+import { FaArrowUp, FaArrowDown } from 'react-icons/fa';
 
-const StatsCard = ({ title, count, icon, color = 'blue' }) => {
-  const colors = {
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    orange: 'bg-orange-100 text-orange-600',
-    purple: 'bg-purple-100 text-purple-600'
-  };
-
+const StatsCard = ({ title, value, icon, trend }) => {
   return (
-    <div className={`p-6 rounded-lg shadow-sm ${colors[color]}`}>
-      <div className="flex items-center justify-between">
+    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+      <div className="flex justify-between items-center">
         <div>
-          <p className="text-base font-medium text-gray-500">{title}</p>
-          <h3 className="text-3xl font-bold mt-2">{count}</h3>
+          <p className="text-sm text-gray-500">{title}</p>
+          <p className="text-2xl font-bold text-gray-700">{value}</p>
         </div>
-        <div className="p-3 rounded-full bg-white bg-opacity-50">
-          {React.cloneElement(icon, { className: "h-8 w-8" })}
+        <div className="p-3 rounded-full bg-opacity-20 bg-gray-300">
+          {icon}
         </div>
       </div>
+      {trend && (
+        <div className={`mt-2 flex items-center text-sm ${
+          trend === 'up' ? 'text-green-500' : 'text-red-500'
+        }`}>
+          {trend === 'up' ? <FaArrowUp /> : <FaArrowDown />}
+          <span className="ml-1">5% vs mois dernier</span>
+        </div>
+      )}
     </div>
   );
 };

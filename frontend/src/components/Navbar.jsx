@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/Logo allo maalam.png'
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -28,18 +29,13 @@ export default function Navbar() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center">
-            <img src="/logo.png" alt="Logo" className="h-10 mr-2" />
+            <img src={logo} alt="Logo" className="h-10 mr-2" />
             <span className="text-xl font-bold text-blue-600">Allo-Maalam</span>
           </Link>
 
           {/* Navigation desktop */}
           <nav className="hidden md:flex items-center space-x-8">
-            <Link 
-              to="/prestataire" 
-              className="text-gray-700 hover:text-blue-600 transition font-medium"
-            >
-              Trouver un Artisan
-            </Link>
+            
             <Link 
               to="/contact" 
               className="text-gray-700 hover:text-blue-600 transition font-medium"

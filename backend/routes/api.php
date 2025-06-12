@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Admin\VerificationArtisanController;
 use App\Http\Controllers\AdminController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
@@ -27,9 +26,15 @@ Route::get('/categories', [CategoryController::class, 'index']);
 Route::middleware(['auth:api', 'role:admin'])->group(function () {
     // Users
     Route::get('/admin/users', [AdminController::class, 'getUsers']);
+    Route::get('/admin/stats/dashboard', [AdminController::class, 'getDashboardStats']);
     Route::put('/admin/users/{user}/status', [AdminController::class, 'updateUserStatus']);
 
-    // Vérification des artisans (version simplifiée)
+    Route::get('/admin/stats/users-by-month', [AdminController::class, 'getUsersByMonth']);
+    Route::get('/admin/stats/artisans-by-category', [AdminController::class, 'getArtisansByCategory']);
+    Route::get('/admin/stats/artisans-by-city', [AdminController::class, 'getArtisansByCity']);
+
+    // Ajoutez ces routes
+
     Route::prefix('admin/artisans')->group(function () {
         // Liste des artisans en attente
         Route::get('/pending', [VerificationArtisanController::class, 'pending']);

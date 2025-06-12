@@ -6,6 +6,7 @@ import Navbar from './components/Navbar';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProtectedRoute from './components/ProtectedRoute'; 
+import HomePage from './pages/HomePage.jsx';
 import AdminLayout from './layouts/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import Users from './pages/admin/Users';
@@ -28,7 +29,7 @@ function App() {
                 <>
                   <Navbar />
                   <div className="pt-16 min-h-screen bg-gray-50">
-                   
+                            <HomePage />
                   </div>
                 </>
               }

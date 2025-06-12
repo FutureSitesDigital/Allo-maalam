@@ -92,7 +92,10 @@ export const adminService = {
   // Ajoutez cette méthode
 getArtisans: async () => {
     const response = await api.get('/admin/artisans');
-    return response.data;
+    return response.data.map(artisan => ({
+        ...artisan,
+        is_approved: artisan.statut_verification === 'approuve'
+    }));
 },
 
 // Nouveaux endpoints pour la vérification des artisans
@@ -118,4 +121,32 @@ deleteArtisan: async (artisanId) => {
     const response = await api.delete(`/admin/artisans/${artisanId}`);
     return response.data;
 },
+
+getDashboardStats: async () => {
+    const response = await api.get('/admin/stats/dashboard');
+    return response.data;
+},
+
+
+
+getDashboardStats: async () => {
+        const response = await api.get('/admin/stats/dashboard');
+        return response.data;
+    },
+    
+    getUsersByMonth: async () => {
+        const response = await api.get('/admin/stats/users-by-month');
+        return response.data;
+    },
+    
+    getArtisansByCategory: async () => {
+        const response = await api.get('/admin/stats/artisans-by-category');
+        return response.data;
+    },
+    
+    getArtisansByCity: async () => {
+        const response = await api.get('/admin/stats/artisans-by-city');
+        return response.data;
+    },
+
 }
